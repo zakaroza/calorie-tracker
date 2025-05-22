@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Calorie Tracker Login</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(to right, #74ebd5, #acb6e5);
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 15px;
+            margin-top: 50px;
+            width: 100%;
+            max-width: 500px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        h1, h2, h3 {
+            text-align: center;
+            color: #333;
+        }
+
+        label {
+            margin-top: 15px;
+            font-weight: 600;
+            color: #444;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 10px;
+            margin-top: 5px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            margin-top: 10px;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        button:hover {
+            background-color: #45a049;
+        }
+
+        .hidden { display: none; }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 8px; border: 1px solid #ccc; }
+    </style>
+</head>
+<body>
+<div class="container" id="authPage">
+    <h1>Welcome</h1>
+    <label>Username</label>
+    <input type="text" id="authUsername">
+
+    <label>Password</label>
+    <input type="password" id="authPassword">
+
+    <button onclick="login()">Login</button>
+    <button onclick="showSignup()">New User? Sign Up</button>
+</div>
+
+<div class="container hidden" id="signupPage">
+    <h2>Sign Up</h2>
+    <label>Username</label>
+    <input type="text" id="newUsername">
+
+    <label>Password (min 6 chars)</label>
+    <input type="password" id="newPassword">
+
+    <label>Age</label>
+    <input type="number" id="newAge">
+
+    <label>Gender</label>
+    <select id="newGender">
+        <option value="male">Male</option>
+        <option value="female">Female</option>
+    </select>
+
+    <label>Height (cm)</label>
+    <input type="number" id="newHeight">
+
+    <label>Weight (kg)</label>
+    <input type="number" id="newWeight">
+
+    <label>Target Loss (kg/month)</label>
+    <input type="number" id="newLoss">
+
+    <button onclick="signup()">Create Account</button>
+</div>
+
+<div class="container hidden" id="trackerPage">
+    <h2 id="userWelcome">Welcome, USER</h2>
+
+    <label for="dailyWeight">Enter Today’s Weight (kg)</label>
+    <input type="number" id="dailyWeight" placeholder="e.g., 70">
+    <button onclick="saveWeight()">Save Weight</button>
+
+    <h3>Your Weight Log</h3>
+    <table>
+        <thead>
+        <tr><th>Date</th><th>Weight (kg)</th></tr>
+        </thead>
+        <tbody id="weightBody"></tbody>
+    </table>
+
+    <button style="background-color: #f44336;" onclick="logout()">Log Out</button>
+</div>
+
+<script>
+    let currentUser = null;
+
+    function showSignup() {
+        document.getElementById('authPage').classList.add('hidden');
+        document.getElementById('signupPage').classList.remove('hidden');
+    }
+
+    function signup() {
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value;
+        const age = +document.getElementById('newAge').value;
+        const gender = document.getElementById('newGender').value;
+        const height = +document.getElementById('newHeight').value;
+        const weight = +document.getElementById('newWeight').value;
+        const loss = +document.getElementById('newLoss').value;
+
+        if (!username || password.length < 6 || !age || !height || !weight || !loss) {
+            alert("Fill all fields properly. Password must be 6+ characters.");
+            return;
+        }
+
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (users[username]) {
+            alert("Username already exists.");
+            return;
+        }
+
+        users[username] = {
+            password,
+            data: { age, gender, height, weight, loss, weightLog: [] }
+        };
+
+        localStorage.setItem('users', JSON.stringify(users));
+        alert("Account created! Please log in.");
+        window.location.reload();
+    }
+
+    function login() {
+        const username = document.getElementById('authUsername').value.trim();
+        const password = document.getElementById('authPassword').value;
+
+        const users = JSON.parse(localStorage.getItem('users') || '{}');
+        if (!users[username] || users[username].password !== password) {
+            alert("Invalid credentials.");
+            return;
+        }
+
+        currentUser = username;
+        document.getElementById('authPage').classList.add('hidden');
+        document.getElementById('trackerPage').classList.remove('hidden');
+        document.getElementById('userWelcome').innerText = `Welcome, ${username}`;
+        renderWeightLog();
+    }
+
+    function saveWeight() {
+        const weight = +document.getElementById('dailyWeight').value;
+        if (!weight) {
+            alert("Enter a valid weight.");
+            return;
+        }
+
+        const now = new Date();
+        const date = now.toLocaleDateString();
+        const time = now.toLocaleTimeString();
+        const timestamp = `${date} ${time}`;
+
+        const users = JSON.parse(localStorage.getItem('users'));
+        const userData = users[currentUser].data;
+
+        // Add weight log with timestamp
+        userData.weightLog.push({ timestamp, weight });
+
+        // Update current weight
+        userData.weight = weight;
+
+        // Save and re-render
+        users[currentUser].data = userData;
+        localStorage.setItem('users', JSON.stringify(users));
+        renderWeightLog();
+        document.getElementById('dailyWeight').value = '';
+    }
+
+    function renderWeightLog() {
+        const users = JSON.parse(localStorage.getItem('users'));
+        const userData = users[currentUser].data;
+        const tbody = document.getElementById('weightBody');
+        tbody.innerHTML = '';
+
+        userData.weightLog.slice().reverse().forEach(entry => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${entry.timestamp}</td><td>${entry.weight}</td>`;
+            tbody.appendChild(tr);
+        });
+
+        // Recalculate and show calories
+        const bmr = calculateBMR(userData);
+        const tdee = bmr * (userData.activity || 1.55); // default moderate
+        const deficit = userData.loss * 7700 / 30;
+        const target = Math.max(tdee - deficit, 1200);
+
+        const caloriesBox = document.getElementById('caloriesBox');
+        if (caloriesBox) {
+            caloriesBox.innerHTML = `
+      <p><strong>Updated BMR:</strong> ${bmr.toFixed(0)} kcal/day</p>
+      <p><strong>TDEE:</strong> ${tdee.toFixed(0)} kcal/day</p>
+      <p><strong>Recommended Intake:</strong> ${target.toFixed(0)} kcal/day</p>
+    `;
+        }
+    }
+
+    function calculateBMR(data) {
+        const { gender, age, height, weight } = data;
+        return gender === "male"
+            ? 10 * weight + 6.25 * height - 5 * age + 5
+            : 10 * weight + 6.25 * height - 5 * age - 161;
+    }
+
+
+    function logout() {
+        currentUser = null;
+        window.location.reload();
+    }
+</script>
+</body>
+</html>
+
+
